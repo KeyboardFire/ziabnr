@@ -1,0 +1,20 @@
+[root]
+name = "ziabnr"
+version = "0.0.0"
+dependencies = [
+ "ncurses 5.82.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "libc"
+version = "0.2.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "ncurses"
+version = "5.82.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
