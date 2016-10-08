@@ -21,8 +21,32 @@ struct Pos {
     col: i32
 }
 
-struct MapTile {
-    disp: Disp
+trait MapTile {
+    fn get_disp(&self) -> Disp;
+}
+
+struct EmptyTile {}
+
+impl MapTile for EmptyTile {
+    fn get_disp(&self) -> Disp {
+        Disp { ch: ' ', color: ncurses::COLOR_WHITE }
+    }
+}
+
+struct VertWall {}
+
+impl MapTile for VertWall {
+    fn get_disp(&self) -> Disp {
+        Disp { ch: '|', color: ncurses::COLOR_WHITE }
+    }
+}
+
+struct HorizWall {}
+
+impl MapTile for HorizWall {
+    fn get_disp(&self) -> Disp {
+        Disp { ch: '-', color: ncurses::COLOR_WHITE }
+    }
 }
 
 trait Object {
@@ -54,13 +78,10 @@ impl Object for Player {
 
 fn main() {
     let mut map = unsafe {
-        let mut map: [[MapTile; 77]; 19] = ::std::mem::uninitialized();
+        let mut map: [[Box<MapTile>; 77]; 19] = ::std::mem::uninitialized();
         for row in map.iter_mut() {
             for x in row.iter_mut() {
-                ::std::ptr::write(x, MapTile { disp: Disp {
-                    ch: ' ',
-                    color: ncurses::COLOR_WHITE
-                }});
+                ::std::ptr::write(x, Box::new(EmptyTile {}));
             }
         }
         map
@@ -68,24 +89,12 @@ fn main() {
 
     // draw a simple room
     for row in 3..13 {
-        map[row][3] = MapTile { disp: Disp {
-            ch: '|',
-            color: ncurses::COLOR_WHITE
-        }};
-        map[row][13] = MapTile { disp: Disp {
-            ch: '|',
-            color: ncurses::COLOR_WHITE
-        }};
+        map[row][3] = Box::new(VertWall {});
+        map[row][13] = Box::new(VertWall {});
     }
     for col in 3..14 {
-        map[3][col] = MapTile { disp: Disp {
-            ch: '-',
-            color: ncurses::COLOR_WHITE
-        }};
-        map[13][col] = MapTile { disp: Disp {
-            ch: '-',
-            color: ncurses::COLOR_WHITE
-        }};
+        map[3][col] = Box::new(HorizWall {});
+        map[13][col] = Box::new(HorizWall {});
     }
 
     let mut objects: Vec<Box<Object>> = Vec::new();
@@ -105,7 +114,7 @@ fn main() {
         }
         for (i, row) in map.iter().enumerate() {
             for (j, tile) in row.iter().enumerate() {
-                tile.disp.draw(&Pos { row: i as i32, col: j as i32 });
+                tile.get_disp().draw(&Pos { row: i as i32, col: j as i32 });
             }
         }
         for object in objects.iter().rev() {
