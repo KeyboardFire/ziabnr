@@ -21,8 +21,17 @@ struct Pos {
     col: i32
 }
 
+impl Pos {
+    fn new(row: i32, col: i32) -> Pos {
+        Pos { row: row, col: col }
+    }
+}
+
+type Map = [[Box<MapTile>; 77]; 19];
+
 trait MapTile {
     fn get_disp(&self) -> Disp;
+    fn passable(&self, object: &Object) -> bool;
 }
 
 struct EmptyTile {}
@@ -30,6 +39,9 @@ struct EmptyTile {}
 impl MapTile for EmptyTile {
     fn get_disp(&self) -> Disp {
         Disp { ch: ' ', color: ncurses::COLOR_WHITE }
+    }
+    fn passable(&self, object: &Object) -> bool {
+        return true;
     }
 }
 
@@ -39,6 +51,9 @@ impl MapTile for VertWall {
     fn get_disp(&self) -> Disp {
         Disp { ch: '|', color: ncurses::COLOR_WHITE }
     }
+    fn passable(&self, object: &Object) -> bool {
+        return false;
+    }
 }
 
 struct HorizWall {}
@@ -47,12 +62,15 @@ impl MapTile for HorizWall {
     fn get_disp(&self) -> Disp {
         Disp { ch: '-', color: ncurses::COLOR_WHITE }
     }
+    fn passable(&self, object: &Object) -> bool {
+        return false;
+    }
 }
 
 trait Object {
     fn get_disp(&self) -> Disp;
     fn get_pos(&self) -> Pos;
-    fn turn(&mut self);
+    fn turn(&mut self, map: &Map);
 }
 
 struct Player {
@@ -67,18 +85,44 @@ impl Object for Player {
         self.pos
     }
 
-    fn turn(&mut self) {
+    fn turn(&mut self, map: &Map) {
         let ch = ncurses::getch() as u8 as char;
-        if ch == 'h' || ch == 'y' || ch == 'b' { self.pos.col -= 1; }
-        if ch == 'j' || ch == 'b' || ch == 'n' { self.pos.row += 1; }
-        if ch == 'k' || ch == 'y' || ch == 'u' { self.pos.row -= 1; }
-        if ch == 'l' || ch == 'u' || ch == 'n' { self.pos.col += 1; }
+        if ch == 'h' || ch == 'y' || ch == 'b' {
+            if let Some(new_pos) = move_relative(self, &Pos::new(0, -1), map) {
+                self.pos = new_pos;
+            }
+        }
+        if ch == 'j' || ch == 'b' || ch == 'n' {
+            if let Some(new_pos) = move_relative(self, &Pos::new(1, 0), map) {
+                self.pos = new_pos;
+            }
+        }
+        if ch == 'k' || ch == 'y' || ch == 'u' {
+            if let Some(new_pos) = move_relative(self, &Pos::new(-1, 0), map) {
+                self.pos = new_pos;
+            }
+        }
+        if ch == 'l' || ch == 'u' || ch == 'n' {
+            if let Some(new_pos) = move_relative(self, &Pos::new(0, 1), map) {
+                self.pos = new_pos;
+            }
+        }
+    }
+}
+
+fn move_relative(object: &Object, offset: &Pos, map: &Map) -> Option<Pos> {
+    let to = Pos { row: object.get_pos().row + offset.row,
+                   col: object.get_pos().col + offset.col };
+    if map[to.row as usize][to.col as usize].passable(object) {
+        Some(to)
+    } else {
+        None
     }
 }
 
 fn main() {
     let mut map = unsafe {
-        let mut map: [[Box<MapTile>; 77]; 19] = ::std::mem::uninitialized();
+        let mut map: Map = ::std::mem::uninitialized();
         for row in map.iter_mut() {
             for x in row.iter_mut() {
                 ::std::ptr::write(x, Box::new(EmptyTile {}));
@@ -110,7 +154,7 @@ fn main() {
 
     loop {
         for mut object in objects.iter_mut() {
-            object.turn();
+            object.turn(&map);
         }
         for (i, row) in map.iter().enumerate() {
             for (j, tile) in row.iter().enumerate() {
