@@ -78,12 +78,8 @@ struct Player {
 }
 
 impl Object for Player {
-    fn get_disp(&self) -> Disp {
-        Disp { ch: '@', color: ncurses::COLOR_WHITE }
-    }
-    fn get_pos(&self) -> Pos {
-        self.pos
-    }
+    fn get_disp(&self) -> Disp { Disp { ch: '@', color: ncurses::COLOR_WHITE } }
+    fn get_pos(&self) -> Pos { self.pos }
 
     fn turn(&mut self, map: &Map) {
         let ch = ncurses::getch() as u8 as char;
@@ -106,6 +102,23 @@ impl Object for Player {
             if let Some(new_pos) = move_relative(self, &Pos::new(0, 1), map) {
                 self.pos = new_pos;
             }
+        }
+    }
+}
+
+struct RandomWalker {
+    pos: Pos
+}
+
+impl Object for RandomWalker {
+    fn get_disp(&self) -> Disp { Disp { ch: 'W', color: ncurses::COLOR_RED } }
+    fn get_pos(&self) -> Pos { self.pos }
+
+    fn turn(&mut self, map: &Map) {
+        if let Some(new_pos) = move_relative(self, &Pos::new(
+                rand::thread_rng().gen_range(-1, 2),
+                rand::thread_rng().gen_range(-1, 2)), map) {
+            self.pos = new_pos;
         }
     }
 }
@@ -143,6 +156,7 @@ fn main() {
 
     let mut objects: Vec<Box<Object>> = Vec::new();
     objects.push(Box::new(Player { pos: Pos { row: 5, col: 5 }}));
+    objects.push(Box::new(RandomWalker { pos: Pos { row: 8, col: 8 }}));
 
     ncurses::initscr();
     ncurses::noecho();
