@@ -8,6 +8,9 @@ struct Disp {
 }
 
 impl Disp {
+    fn new(ch: char, color: i16) -> Disp {
+        Disp { ch: ch, color: color }
+    }
     fn draw(&self, pos: &Pos) {
         ncurses::attron(ncurses::COLOR_PAIR(self.color));
         ncurses::mvaddch(pos.row + 2, pos.col + 1, self.ch as u64);
@@ -27,10 +30,10 @@ impl Pos {
     }
 }
 
-const LEFT: Pos = Pos { row: 0, col: -1 };
-const DOWN: Pos = Pos { row: 1, col: 0 };
-const UP: Pos = Pos { row: -1, col: 0 };
-const RIGHT: Pos = Pos { row: 0, col: 1 };
+const LEFT:  Pos = Pos { row:  0, col: -1 };
+const DOWN:  Pos = Pos { row:  1, col:  0 };
+const UP:    Pos = Pos { row: -1, col:  0 };
+const RIGHT: Pos = Pos { row:  0, col:  1 };
 
 type Map = [[Box<MapTile>; 77]; 19];
 
@@ -42,29 +45,29 @@ trait MapTile {
 struct EmptyTile {}
 
 impl MapTile for EmptyTile {
-    fn get_disp(&self) -> Disp { Disp { ch: ' ', color: ncurses::COLOR_WHITE } }
-    fn passable(&self, object: &Object) -> bool { return true; }
+    fn get_disp(&self) -> Disp { Disp::new(' ', ncurses::COLOR_WHITE) }
+    fn passable(&self, _: &Object) -> bool { return true; }
 }
 
 struct VertWall {}
 
 impl MapTile for VertWall {
-    fn get_disp(&self) -> Disp { Disp { ch: '|', color: ncurses::COLOR_WHITE } }
-    fn passable(&self, object: &Object) -> bool { return false; }
+    fn get_disp(&self) -> Disp { Disp::new('|', ncurses::COLOR_WHITE) }
+    fn passable(&self, _: &Object) -> bool { return false; }
 }
 
 struct HorizWall {}
 
 impl MapTile for HorizWall {
-    fn get_disp(&self) -> Disp { Disp { ch: '-', color: ncurses::COLOR_WHITE } }
-    fn passable(&self, object: &Object) -> bool { return false; }
+    fn get_disp(&self) -> Disp { Disp::new('-', ncurses::COLOR_WHITE) }
+    fn passable(&self, _: &Object) -> bool { return false; }
 }
 
 trait Object {
     fn get_disp(&self) -> Disp;
     fn passable(&self, object: &Object) -> bool;
     fn get_pos(&self) -> Pos;
-    fn turn(&mut self, map: &Map, before: &[Box<Object>], after: &[Box<Object>]);
+    fn turn(&mut self, map: &mut Map, before: &mut [Box<Object>], after: &mut [Box<Object>]);
 }
 
 struct Player {
@@ -73,10 +76,10 @@ struct Player {
 
 impl Object for Player {
     fn get_disp(&self) -> Disp { Disp { ch: '@', color: ncurses::COLOR_WHITE } }
-    fn passable(&self, object: &Object) -> bool { return false; }
+    fn passable(&self, _: &Object) -> bool { return false; }
     fn get_pos(&self) -> Pos { self.pos }
 
-    fn turn(&mut self, map: &Map, before: &[Box<Object>], after: &[Box<Object>]) {
+    fn turn(&mut self, map: &mut Map, before: &mut [Box<Object>], after: &mut [Box<Object>]) {
         let ch = ncurses::getch() as u8 as char;
         if ch == 'h' || ch == 'y' || ch == 'b' {
             if let Some(pos) = move_relative(self, &LEFT, map, before, after) {
@@ -106,11 +109,11 @@ struct RandomWalker {
 }
 
 impl Object for RandomWalker {
-    fn get_disp(&self) -> Disp { Disp { ch: 'W', color: ncurses::COLOR_RED } }
-    fn passable(&self, object: &Object) -> bool { return false; }
+    fn get_disp(&self) -> Disp { Disp::new('W', ncurses::COLOR_RED) }
+    fn passable(&self, _: &Object) -> bool { return false; }
     fn get_pos(&self) -> Pos { self.pos }
 
-    fn turn(&mut self, map: &Map, before: &[Box<Object>], after: &[Box<Object>]) {
+    fn turn(&mut self, map: &mut Map, before: &mut [Box<Object>], after: &mut [Box<Object>]) {
         if let Some(new_pos) = move_relative(self, &Pos::new(
                 rand::thread_rng().gen_range(-1, 2),
                 rand::thread_rng().gen_range(-1, 2)), map, before, after) {
@@ -166,21 +169,26 @@ fn main() {
     }
 
     loop {
+
         for i in 0..objects.len() {
-            let (mut before_object, mut after_object) = objects.split_at_mut(i);
-            let (mut object, mut after_object) = after_object.split_first_mut().unwrap();
-            object.turn(&map, before_object, after_object);
+            let (mut before, mut after) = objects.split_at_mut(i);
+            let (mut object, mut after) = after.split_first_mut().unwrap();
+            object.turn(&mut map, &mut before, &mut after);
         }
+
         for (i, row) in map.iter().enumerate() {
             for (j, tile) in row.iter().enumerate() {
                 tile.get_disp().draw(&Pos { row: i as i32, col: j as i32 });
             }
         }
+
         for object in objects.iter().rev() {
             object.get_disp().draw(&object.get_pos());
         }
+
         ncurses::addch(8); // backspace; put cursor on top of player
         ncurses::refresh();
+
     }
 
     ncurses::endwin();
