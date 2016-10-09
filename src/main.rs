@@ -3,110 +3,17 @@ extern crate rand;
 use rand::Rng;
 
 mod disp;
-use disp::Disp;
 
 mod pos;
 use pos::Pos;
 
-type Map = [[Box<MapTile>; 77]; 19];
+mod map;
+use map::Map;
 
-trait MapTile {
-    fn get_disp(&self) -> Disp;
-    fn passable(&self, object: &Object) -> bool;
-}
+mod object;
+use object::Object;
 
-struct EmptyTile {}
-
-impl MapTile for EmptyTile {
-    fn get_disp(&self) -> Disp { Disp::new(' ', ncurses::COLOR_WHITE) }
-    fn passable(&self, _: &Object) -> bool { return true; }
-}
-
-struct VertWall {}
-
-impl MapTile for VertWall {
-    fn get_disp(&self) -> Disp { Disp::new('|', ncurses::COLOR_WHITE) }
-    fn passable(&self, _: &Object) -> bool { return false; }
-}
-
-struct HorizWall {}
-
-impl MapTile for HorizWall {
-    fn get_disp(&self) -> Disp { Disp::new('-', ncurses::COLOR_WHITE) }
-    fn passable(&self, _: &Object) -> bool { return false; }
-}
-
-trait Object {
-    fn get_disp(&self) -> Disp;
-    fn passable(&self, object: &Object) -> bool;
-    fn get_pos(&self) -> Pos;
-    fn turn(&mut self, map: &mut Map, before: &mut [Box<Object>], after: &mut [Box<Object>]);
-}
-
-struct Player {
-    pos: Pos
-}
-
-impl Object for Player {
-    fn get_disp(&self) -> Disp { Disp { ch: '@', color: ncurses::COLOR_WHITE } }
-    fn passable(&self, _: &Object) -> bool { return false; }
-    fn get_pos(&self) -> Pos { self.pos }
-
-    fn turn(&mut self, map: &mut Map, before: &mut [Box<Object>], after: &mut [Box<Object>]) {
-        let ch = ncurses::getch() as u8 as char;
-        if ch == 'h' || ch == 'y' || ch == 'b' {
-            if let Some(pos) = move_relative(self, &pos::LEFT, map, before, after) {
-                self.pos = pos;
-            }
-        }
-        if ch == 'j' || ch == 'b' || ch == 'n' {
-            if let Some(pos) = move_relative(self, &pos::DOWN, map, before, after) {
-                self.pos = pos;
-            }
-        }
-        if ch == 'k' || ch == 'y' || ch == 'u' {
-            if let Some(pos) = move_relative(self, &pos::UP, map, before, after) {
-                self.pos = pos;
-            }
-        }
-        if ch == 'l' || ch == 'u' || ch == 'n' {
-            if let Some(pos) = move_relative(self, &pos::RIGHT, map, before, after) {
-                self.pos = pos;
-            }
-        }
-    }
-}
-
-struct RandomWalker {
-    pos: Pos
-}
-
-impl Object for RandomWalker {
-    fn get_disp(&self) -> Disp { Disp::new('W', ncurses::COLOR_RED) }
-    fn passable(&self, _: &Object) -> bool { return false; }
-    fn get_pos(&self) -> Pos { self.pos }
-
-    fn turn(&mut self, map: &mut Map, before: &mut [Box<Object>], after: &mut [Box<Object>]) {
-        if let Some(new_pos) = move_relative(self, &Pos::new(
-                rand::thread_rng().gen_range(-1, 2),
-                rand::thread_rng().gen_range(-1, 2)), map, before, after) {
-            self.pos = new_pos;
-        }
-    }
-}
-
-fn move_relative(object: &Object, offset: &Pos, map: &Map,
-                 before: &[Box<Object>], after: &[Box<Object>]) -> Option<Pos> {
-    let to = Pos { row: object.get_pos().row + offset.row,
-                   col: object.get_pos().col + offset.col };
-    if map[to.row as usize][to.col as usize].passable(object) &&
-            before.iter().chain(after.iter()).all(|obj|
-                obj.get_pos() != to || obj.passable(object)) {
-        Some(to)
-    } else {
-        None
-    }
-}
+mod util;
 
 struct Room {
     pos: Vec2,
@@ -129,7 +36,7 @@ fn main() {
         let mut map: Map = ::std::mem::uninitialized();
         for row in map.iter_mut() {
             for x in row.iter_mut() {
-                ::std::ptr::write(x, Box::new(EmptyTile {}));
+                ::std::ptr::write(x, Box::new(map::EmptyTile {}));
             }
         }
         map
@@ -201,17 +108,17 @@ fn main() {
             if data[row][col] == 1 {
                 if row == 0 || row == 19-1 ||
                    data[row-1][col] != 1 || data[row+1][col] != 1 {
-                    map[row][col] = Box::new(HorizWall {});
+                    map[row][col] = Box::new(map::HorizWall {});
                 } else {
-                    map[row][col] = Box::new(VertWall {});
+                    map[row][col] = Box::new(map::VertWall {});
                 }
             }
         }
     }
 
     let mut objects: Vec<Box<Object>> = Vec::new();
-    objects.push(Box::new(Player { pos: Pos { row: 5, col: 5 }}));
-    objects.push(Box::new(RandomWalker { pos: Pos { row: 8, col: 8 }}));
+    objects.push(Box::new(object::Player { pos: Pos { row: 5, col: 5 }}));
+    objects.push(Box::new(object::RandomWalker { pos: Pos { row: 8, col: 8 }}));
 
     ncurses::initscr();
     ncurses::noecho();
