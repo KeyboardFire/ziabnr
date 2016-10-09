@@ -19,7 +19,16 @@ struct Vec2 {
 enum GenData {
     Empty,
     Wall,
-    Interior
+    Interior,
+    InteriorFilled,
+    Door,
+    Corridor
+}
+
+#[derive(Clone,Copy,PartialEq)]
+enum GenState {
+    Searching,
+    Filling
 }
 
 const REPULSION_NUM: usize = 20;
@@ -100,18 +109,122 @@ pub fn gen_rooms() -> Map {
             }
         }
     }
+
+    while data.iter().any(|x| x.iter().any(|&y| y == GenData::Interior)) {
+        flood_fill(&mut data, rand::thread_rng().gen_range(0, 19), rand::thread_rng().gen_range(0, 77), 0, 0, GenState::Searching);
+    }
+
     for row in 0..19 {
         for col in 0..77 {
-            if data[row][col] == GenData::Wall {
-                if row == 0 || row == 19-1 ||
-                   data[row-1][col] != GenData::Wall || data[row+1][col] != GenData::Wall {
-                    map[row][col] = Box::new(map::HorizWall {});
-                } else {
-                    map[row][col] = Box::new(map::VertWall {});
-                }
+            match data[row][col] {
+                GenData::Wall => {
+                    if row == 0 || row == 19-1 ||
+                       data[row-1][col] != GenData::Wall || data[row+1][col] != GenData::Wall {
+                        map[row][col] = Box::new(map::HorizWall {});
+                    } else {
+                        map[row][col] = Box::new(map::VertWall {});
+                    }
+                },
+                GenData::Door => {
+                    map[row][col] = Box::new(map::Door {});
+                },
+                GenData::Corridor => {
+                    map[row][col] = Box::new(map::Corridor {});
+                },
+                _ => {}
             }
         }
     }
 
     map
+}
+
+fn flood_fill(data: &mut [[GenData; 77]; 19], row: usize, col: usize, prow: usize, pcol: usize, state: GenState) {
+    if row == -1i32 as usize || row == 19 || col == -1i32 as usize || col == 77 { return; }
+    match data[row][col] {
+        GenData::Empty => {
+            if state == GenState::Filling {
+                data[row][col] = GenData::Corridor;
+                let crow = row.wrapping_add(row.wrapping_sub(prow));
+                let ccol = col.wrapping_add(col.wrapping_sub(pcol));
+                match data.get(crow).and_then(|x| x.get(ccol)) {
+                    Some(&GenData::Empty) | Some(&GenData::Corridor) => {
+                        if rand::thread_rng().gen_weighted_bool(35) {
+                            let first_try = if rand::random() { 1 } else { -1i32 as usize };
+                            if row == prow {
+                                if row.wrapping_add(first_try) > 0 && row.wrapping_add(first_try) < 19 {
+                                    flood_fill(data, row.wrapping_add(first_try), col, row, col, GenState::Filling);
+                                } else {
+                                    flood_fill(data, row.wrapping_sub(first_try), col, row, col, GenState::Filling);
+                                }
+                            } else { // col == pcol
+                                if col.wrapping_add(first_try) > 0 && col.wrapping_add(first_try) < 77 {
+                                    flood_fill(data, row, col.wrapping_add(first_try), row, col, GenState::Filling);
+                                } else {
+                                    flood_fill(data, row, col.wrapping_sub(first_try), row, col, GenState::Filling);
+                                }
+                            }
+                        } else {
+                            flood_fill(data, crow, ccol, row, col, GenState::Filling);
+                        }
+                    },
+                    Some(&GenData::Wall) => {
+                        flood_fill(data, crow, ccol, row, col, GenState::Filling);
+                    },
+                    Some(&GenData::Interior) | Some(&GenData::InteriorFilled) => {
+                        panic!("empty touching interior in flood_fill?");
+                    },
+                    Some(&GenData::Door) => {
+                        // how convenient
+                    },
+                    None => {
+                        let first_try = if rand::random() { 1 } else { -1i32 as usize };
+                        if row == prow {
+                            if row.wrapping_add(first_try) > 0 && row.wrapping_add(first_try) < 19 {
+                                flood_fill(data, row.wrapping_add(first_try), col, row, col, GenState::Filling);
+                            } else {
+                                flood_fill(data, row.wrapping_sub(first_try), col, row, col, GenState::Filling);
+                            }
+                        } else { // col == pcol
+                            if col.wrapping_add(first_try) > 0 && col.wrapping_add(first_try) < 77 {
+                                flood_fill(data, row, col.wrapping_add(first_try), row, col, GenState::Filling);
+                            } else {
+                                flood_fill(data, row, col.wrapping_sub(first_try), row, col, GenState::Filling);
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        GenData::Wall => {
+            if data[prow][pcol] == GenData::Interior && rand::thread_rng().gen_weighted_bool(50) {
+                let door_ok = {
+                    let surrounding: Vec<Option<&GenData>> = [(1,0),(-1,0),(0,1),(0,-1)].iter().map(|&(x, y)|
+                        data.get(row.wrapping_add(x as usize)).and_then(|z| z.get(col.wrapping_add(y as usize)))).collect();
+                    surrounding.iter().any(|&z| z.map_or(false, |&a| a == GenData::Empty)) &&
+                        surrounding.iter().any(|&z| z.map_or(false, |&a| a == GenData::Interior))
+                };
+                if door_ok {
+                    data[row][col] = GenData::Door;
+                    flood_fill(data, row+1, col, row, col, GenState::Filling);
+                    flood_fill(data, row-1, col, row, col, GenState::Filling);
+                    flood_fill(data, row, col+1, row, col, GenState::Filling);
+                    flood_fill(data, row, col-1, row, col, GenState::Filling);
+                }
+            } else if data[prow][pcol] == GenData::Corridor {
+                data[row][col] = GenData::Door;
+            }
+        },
+        GenData::Interior => {
+            if state == GenState::Filling {
+                data[row][col] = GenData::InteriorFilled;
+            }
+            let mut dirs: [(i32, i32); 4] = [(1,0),(-1,0),(0,1),(0,-1)];
+            rand::thread_rng().shuffle(&mut dirs);
+            for &(x, y) in dirs.iter() {
+                flood_fill(data, row.wrapping_add(x as usize), col.wrapping_add(y as usize), row, col, state);
+            }
+        },
+        GenData::InteriorFilled | GenData::Door | GenData::Corridor => {}
+    }
 }

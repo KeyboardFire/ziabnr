@@ -30,3 +30,17 @@ impl MapTile for HorizWall {
     fn get_disp(&self) -> Disp { Disp::new('-', ncurses::COLOR_WHITE) }
     fn passable(&self, _: &Object) -> bool { return false; }
 }
+
+pub struct Door {}
+
+impl MapTile for Door {
+    fn get_disp(&self) -> Disp { Disp::new('+', ncurses::COLOR_YELLOW) }
+    fn passable(&self, _: &Object) -> bool { return true; }
+}
+
+pub struct Corridor {}
+
+impl MapTile for Corridor {
+    fn get_disp(&self) -> Disp { Disp::new('#', ncurses::COLOR_WHITE) }
+    fn passable(&self, _: &Object) -> bool { return true; }
+}
