@@ -2,38 +2,11 @@ extern crate ncurses;
 extern crate rand;
 use rand::Rng;
 
-struct Disp {
-    ch: char,
-    color: i16
-}
+mod disp;
+use disp::Disp;
 
-impl Disp {
-    fn new(ch: char, color: i16) -> Disp {
-        Disp { ch: ch, color: color }
-    }
-    fn draw(&self, pos: &Pos) {
-        ncurses::attron(ncurses::COLOR_PAIR(self.color));
-        ncurses::mvaddch(pos.row + 2, pos.col + 1, self.ch as u64);
-        ncurses::attroff(ncurses::COLOR_PAIR(self.color));
-    }
-}
-
-#[derive(Clone,Copy,PartialEq)]
-struct Pos {
-    row: i32,
-    col: i32
-}
-
-impl Pos {
-    fn new(row: i32, col: i32) -> Pos {
-        Pos { row: row, col: col }
-    }
-}
-
-const LEFT:  Pos = Pos { row:  0, col: -1 };
-const DOWN:  Pos = Pos { row:  1, col:  0 };
-const UP:    Pos = Pos { row: -1, col:  0 };
-const RIGHT: Pos = Pos { row:  0, col:  1 };
+mod pos;
+use pos::Pos;
 
 type Map = [[Box<MapTile>; 77]; 19];
 
@@ -82,22 +55,22 @@ impl Object for Player {
     fn turn(&mut self, map: &mut Map, before: &mut [Box<Object>], after: &mut [Box<Object>]) {
         let ch = ncurses::getch() as u8 as char;
         if ch == 'h' || ch == 'y' || ch == 'b' {
-            if let Some(pos) = move_relative(self, &LEFT, map, before, after) {
+            if let Some(pos) = move_relative(self, &pos::LEFT, map, before, after) {
                 self.pos = pos;
             }
         }
         if ch == 'j' || ch == 'b' || ch == 'n' {
-            if let Some(pos) = move_relative(self, &DOWN, map, before, after) {
+            if let Some(pos) = move_relative(self, &pos::DOWN, map, before, after) {
                 self.pos = pos;
             }
         }
         if ch == 'k' || ch == 'y' || ch == 'u' {
-            if let Some(pos) = move_relative(self, &UP, map, before, after) {
+            if let Some(pos) = move_relative(self, &pos::UP, map, before, after) {
                 self.pos = pos;
             }
         }
         if ch == 'l' || ch == 'u' || ch == 'n' {
-            if let Some(pos) = move_relative(self, &RIGHT, map, before, after) {
+            if let Some(pos) = move_relative(self, &pos::RIGHT, map, before, after) {
                 self.pos = pos;
             }
         }
