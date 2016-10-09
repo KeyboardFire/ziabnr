@@ -15,7 +15,7 @@ impl Disp {
     }
 }
 
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,PartialEq)]
 struct Pos {
     row: i32,
     col: i32
@@ -27,6 +27,11 @@ impl Pos {
     }
 }
 
+const LEFT: Pos = Pos { row: 0, col: -1 };
+const DOWN: Pos = Pos { row: 1, col: 0 };
+const UP: Pos = Pos { row: -1, col: 0 };
+const RIGHT: Pos = Pos { row: 0, col: 1 };
+
 type Map = [[Box<MapTile>; 77]; 19];
 
 trait MapTile {
@@ -37,40 +42,29 @@ trait MapTile {
 struct EmptyTile {}
 
 impl MapTile for EmptyTile {
-    fn get_disp(&self) -> Disp {
-        Disp { ch: ' ', color: ncurses::COLOR_WHITE }
-    }
-    fn passable(&self, object: &Object) -> bool {
-        return true;
-    }
+    fn get_disp(&self) -> Disp { Disp { ch: ' ', color: ncurses::COLOR_WHITE } }
+    fn passable(&self, object: &Object) -> bool { return true; }
 }
 
 struct VertWall {}
 
 impl MapTile for VertWall {
-    fn get_disp(&self) -> Disp {
-        Disp { ch: '|', color: ncurses::COLOR_WHITE }
-    }
-    fn passable(&self, object: &Object) -> bool {
-        return false;
-    }
+    fn get_disp(&self) -> Disp { Disp { ch: '|', color: ncurses::COLOR_WHITE } }
+    fn passable(&self, object: &Object) -> bool { return false; }
 }
 
 struct HorizWall {}
 
 impl MapTile for HorizWall {
-    fn get_disp(&self) -> Disp {
-        Disp { ch: '-', color: ncurses::COLOR_WHITE }
-    }
-    fn passable(&self, object: &Object) -> bool {
-        return false;
-    }
+    fn get_disp(&self) -> Disp { Disp { ch: '-', color: ncurses::COLOR_WHITE } }
+    fn passable(&self, object: &Object) -> bool { return false; }
 }
 
 trait Object {
     fn get_disp(&self) -> Disp;
+    fn passable(&self, object: &Object) -> bool;
     fn get_pos(&self) -> Pos;
-    fn turn(&mut self, map: &Map);
+    fn turn(&mut self, map: &Map, before: &[Box<Object>], after: &[Box<Object>]);
 }
 
 struct Player {
@@ -79,28 +73,29 @@ struct Player {
 
 impl Object for Player {
     fn get_disp(&self) -> Disp { Disp { ch: '@', color: ncurses::COLOR_WHITE } }
+    fn passable(&self, object: &Object) -> bool { return false; }
     fn get_pos(&self) -> Pos { self.pos }
 
-    fn turn(&mut self, map: &Map) {
+    fn turn(&mut self, map: &Map, before: &[Box<Object>], after: &[Box<Object>]) {
         let ch = ncurses::getch() as u8 as char;
         if ch == 'h' || ch == 'y' || ch == 'b' {
-            if let Some(new_pos) = move_relative(self, &Pos::new(0, -1), map) {
-                self.pos = new_pos;
+            if let Some(pos) = move_relative(self, &LEFT, map, before, after) {
+                self.pos = pos;
             }
         }
         if ch == 'j' || ch == 'b' || ch == 'n' {
-            if let Some(new_pos) = move_relative(self, &Pos::new(1, 0), map) {
-                self.pos = new_pos;
+            if let Some(pos) = move_relative(self, &DOWN, map, before, after) {
+                self.pos = pos;
             }
         }
         if ch == 'k' || ch == 'y' || ch == 'u' {
-            if let Some(new_pos) = move_relative(self, &Pos::new(-1, 0), map) {
-                self.pos = new_pos;
+            if let Some(pos) = move_relative(self, &UP, map, before, after) {
+                self.pos = pos;
             }
         }
         if ch == 'l' || ch == 'u' || ch == 'n' {
-            if let Some(new_pos) = move_relative(self, &Pos::new(0, 1), map) {
-                self.pos = new_pos;
+            if let Some(pos) = move_relative(self, &RIGHT, map, before, after) {
+                self.pos = pos;
             }
         }
     }
@@ -112,21 +107,25 @@ struct RandomWalker {
 
 impl Object for RandomWalker {
     fn get_disp(&self) -> Disp { Disp { ch: 'W', color: ncurses::COLOR_RED } }
+    fn passable(&self, object: &Object) -> bool { return false; }
     fn get_pos(&self) -> Pos { self.pos }
 
-    fn turn(&mut self, map: &Map) {
+    fn turn(&mut self, map: &Map, before: &[Box<Object>], after: &[Box<Object>]) {
         if let Some(new_pos) = move_relative(self, &Pos::new(
                 rand::thread_rng().gen_range(-1, 2),
-                rand::thread_rng().gen_range(-1, 2)), map) {
+                rand::thread_rng().gen_range(-1, 2)), map, before, after) {
             self.pos = new_pos;
         }
     }
 }
 
-fn move_relative(object: &Object, offset: &Pos, map: &Map) -> Option<Pos> {
+fn move_relative(object: &Object, offset: &Pos, map: &Map,
+                 before: &[Box<Object>], after: &[Box<Object>]) -> Option<Pos> {
     let to = Pos { row: object.get_pos().row + offset.row,
                    col: object.get_pos().col + offset.col };
-    if map[to.row as usize][to.col as usize].passable(object) {
+    if map[to.row as usize][to.col as usize].passable(object) &&
+            before.iter().chain(after.iter()).all(|obj|
+                obj.get_pos() != to || obj.passable(object)) {
         Some(to)
     } else {
         None
@@ -167,8 +166,10 @@ fn main() {
     }
 
     loop {
-        for mut object in objects.iter_mut() {
-            object.turn(&map);
+        for i in 0..objects.len() {
+            let (mut before_object, mut after_object) = objects.split_at_mut(i);
+            let (mut object, mut after_object) = after_object.split_first_mut().unwrap();
+            object.turn(&map, before_object, after_object);
         }
         for (i, row) in map.iter().enumerate() {
             for (j, tile) in row.iter().enumerate() {
