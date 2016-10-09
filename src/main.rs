@@ -146,8 +146,10 @@ struct Vec2 {
     x: f32, y: f32
 }
 
-const REPULSION_FACTOR: f32 = 0.000001;
-const REPULSION_TRIES: usize = 10000;
+const REPULSION_NUM: usize = 30;
+const REPULSION_FACTOR: f32 = 0.00001;
+const REPULSION_TRIES: usize = 1000;
+const REPULSION_POW: f32 = 4.5;
 
 fn main() {
     let mut map = unsafe {
@@ -160,7 +162,7 @@ fn main() {
         map
     };
 
-    let mut rooms: Vec<Room> = (0..20).map(|_| Room {
+    let mut rooms: Vec<Room> = (0..REPULSION_NUM).map(|_| Room {
         pos: Vec2 {
             x: rand::thread_rng().gen_range(5.0, 72.0),
             y: rand::thread_rng().gen_range(3.0, 16.0)
@@ -174,8 +176,12 @@ fn main() {
         for i in 0..rooms.len() {
             for j in i+1..rooms.len() {
                 let repulsion = Vec2 {
-                    x: 1.0 / (rooms[i].pos.x - rooms[j].pos.x).powi(5),
-                    y: 1.0 / (rooms[i].pos.y - rooms[j].pos.y).powi(5)
+                    x: 1.0 / (rooms[i].pos.x - rooms[j].pos.x),
+                    y: 1.0 / (rooms[i].pos.y - rooms[j].pos.y)
+                };
+                let repulsion = Vec2 {
+                    x: repulsion.x.abs().powf(REPULSION_POW) * repulsion.x.signum(),
+                    y: repulsion.y.abs().powf(REPULSION_POW) * repulsion.y.signum()
                 };
                 rooms[i].repulsion.x += rooms[j].width  * repulsion.x;
                 rooms[i].repulsion.y += rooms[j].height * repulsion.y;
@@ -208,12 +214,18 @@ fn main() {
     for row in 0..19 {
         for col in 0..77 {
             if data[row][col] == 1 {
-                if row != 0 && data[row-1][col] == 1 &&
-                   col != 0 && data[row][col-1] == 1 &&
-                   row != 19-1 && data[row+1][col] == 1 &&
-                   col != 77-1 && data[row][col+1] == 1 {
-                    continue;
+                if [-1,0,1].iter().all(|&i| [-1,0,1].iter().all(|&j|
+                    data.get(row.wrapping_add(i as usize)).map_or(false, |x|
+                        x.get(col.wrapping_add(j as usize)).map_or(false, |&y|
+                            y != 0)))) {
+                    data[row][col] = 2;
                 }
+            }
+        }
+    }
+    for row in 0..19 {
+        for col in 0..77 {
+            if data[row][col] == 1 {
                 if row == 0 || row == 19-1 ||
                    data[row-1][col] != 1 || data[row+1][col] != 1 {
                     map[row][col] = Box::new(HorizWall {});
