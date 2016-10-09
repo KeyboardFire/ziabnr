@@ -147,29 +147,17 @@ fn flood_fill(data: &mut [[GenData; 77]; 19], row: usize, col: usize, prow: usiz
                 data[row][col] = GenData::Corridor;
                 let crow = row.wrapping_add(row.wrapping_sub(prow));
                 let ccol = col.wrapping_add(col.wrapping_sub(pcol));
+                let (mut cfill, mut tfill) = (false, false);
                 match data.get(crow).and_then(|x| x.get(ccol)) {
                     Some(&GenData::Empty) | Some(&GenData::Corridor) => {
                         if rand::thread_rng().gen_weighted_bool(35) {
-                            let first_try = if rand::random() { 1 } else { -1i32 as usize };
-                            if row == prow {
-                                if row.wrapping_add(first_try) > 0 && row.wrapping_add(first_try) < 19 {
-                                    flood_fill(data, row.wrapping_add(first_try), col, row, col, GenState::Filling);
-                                } else {
-                                    flood_fill(data, row.wrapping_sub(first_try), col, row, col, GenState::Filling);
-                                }
-                            } else { // col == pcol
-                                if col.wrapping_add(first_try) > 0 && col.wrapping_add(first_try) < 77 {
-                                    flood_fill(data, row, col.wrapping_add(first_try), row, col, GenState::Filling);
-                                } else {
-                                    flood_fill(data, row, col.wrapping_sub(first_try), row, col, GenState::Filling);
-                                }
-                            }
+                            tfill = true;
                         } else {
-                            flood_fill(data, crow, ccol, row, col, GenState::Filling);
+                            cfill = true;
                         }
                     },
                     Some(&GenData::Wall) => {
-                        flood_fill(data, crow, ccol, row, col, GenState::Filling);
+                        cfill = true;
                     },
                     Some(&GenData::Interior) | Some(&GenData::InteriorFilled) => {
                         panic!("empty touching interior in flood_fill?");
@@ -178,19 +166,27 @@ fn flood_fill(data: &mut [[GenData; 77]; 19], row: usize, col: usize, prow: usiz
                         // how convenient
                     },
                     None => {
-                        let first_try = if rand::random() { 1 } else { -1i32 as usize };
-                        if row == prow {
-                            if row.wrapping_add(first_try) > 0 && row.wrapping_add(first_try) < 19 {
-                                flood_fill(data, row.wrapping_add(first_try), col, row, col, GenState::Filling);
-                            } else {
-                                flood_fill(data, row.wrapping_sub(first_try), col, row, col, GenState::Filling);
-                            }
-                        } else { // col == pcol
-                            if col.wrapping_add(first_try) > 0 && col.wrapping_add(first_try) < 77 {
-                                flood_fill(data, row, col.wrapping_add(first_try), row, col, GenState::Filling);
-                            } else {
-                                flood_fill(data, row, col.wrapping_sub(first_try), row, col, GenState::Filling);
-                            }
+                        tfill = true;
+                    }
+                }
+
+                if cfill {
+                    flood_fill(data, crow, ccol, row, col, GenState::Filling);
+                }
+
+                if tfill {
+                    let first_try = if rand::random() { 1 } else { -1i32 as usize };
+                    if row == prow {
+                        if row.wrapping_add(first_try) > 0 && row.wrapping_add(first_try) < 19 {
+                            flood_fill(data, row.wrapping_add(first_try), col, row, col, GenState::Filling);
+                        } else {
+                            flood_fill(data, row.wrapping_sub(first_try), col, row, col, GenState::Filling);
+                        }
+                    } else { // col == pcol
+                        if col.wrapping_add(first_try) > 0 && col.wrapping_add(first_try) < 77 {
+                            flood_fill(data, row, col.wrapping_add(first_try), row, col, GenState::Filling);
+                        } else {
+                            flood_fill(data, row, col.wrapping_sub(first_try), row, col, GenState::Filling);
                         }
                     }
                 }
