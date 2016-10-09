@@ -15,10 +15,10 @@ struct Vec2 {
     x: f32, y: f32
 }
 
-const REPULSION_NUM: usize = 30;
-const REPULSION_FACTOR: f32 = 0.00001;
-const REPULSION_TRIES: usize = 1000;
-const REPULSION_POW: f32 = 4.5;
+const REPULSION_NUM: usize = 20;
+const REPULSION_FACTOR: f32 = 0.5;
+const REPULSION_TRIES: usize = 500;
+const REPULSION_POW: f32 = 8.5;
 
 pub fn gen_rooms() -> Map {
     let mut map = unsafe {
@@ -61,12 +61,12 @@ pub fn gen_rooms() -> Map {
 
         for mut room in rooms.iter_mut() {
             room.pos.x += room.repulsion.x * REPULSION_FACTOR;
-            if room.pos.x < room.width { room.pos.x = room.width; }
-            if room.pos.x > 77.0 - room.width { room.pos.x = 77.0 - room.width; }
+            if room.pos.x < room.width { room.pos.x = rand::thread_rng().gen_range(room.width, room.width * 2.0); }
+            if room.pos.x > 77.0 - room.width { room.pos.x = 77.0 - rand::thread_rng().gen_range(room.width, room.width * 2.0); }
 
             room.pos.y += room.repulsion.y * REPULSION_FACTOR;
-            if room.pos.y < room.height { room.pos.y = room.height; }
-            if room.pos.y > 19.0 - room.height { room.pos.y = 19.0 - room.height; }
+            if room.pos.y < room.height { room.pos.y = rand::thread_rng().gen_range(room.height, room.height * 2.0); }
+            if room.pos.y > 19.0 - room.height { room.pos.y = 19.0 - rand::thread_rng().gen_range(room.height, room.height * 2.0); }
 
             room.repulsion = Vec2 { x: 0.0, y: 0.0 };
         }
