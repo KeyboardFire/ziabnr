@@ -15,6 +15,13 @@ struct Vec2 {
     x: f32, y: f32
 }
 
+#[derive(Clone,Copy,PartialEq)]
+enum GenData {
+    Empty,
+    Wall,
+    Interior
+}
+
 const REPULSION_NUM: usize = 20;
 const REPULSION_FACTOR: f32 = 0.5;
 const REPULSION_TRIES: usize = 500;
@@ -72,31 +79,32 @@ pub fn gen_rooms() -> Map {
         }
     }
 
-    let mut data: [[i32; 77]; 19] = [[0; 77]; 19];
+    let mut data = [[GenData::Empty; 77]; 19];
     for room in rooms.iter() {
         for col in (room.pos.x - room.width).round() as usize..(room.pos.x + room.width).round() as usize {
             for row in (room.pos.y - room.height).round() as usize..(room.pos.y + room.height).round() as usize {
-                data[row][col] = 1;
+                data[row][col] = GenData::Wall;
             }
         }
     }
+
     for row in 0..19 {
         for col in 0..77 {
-            if data[row][col] == 1 {
+            if data[row][col] == GenData::Wall {
                 if [-1,0,1].iter().all(|&i| [-1,0,1].iter().all(|&j|
                     data.get(row.wrapping_add(i as usize)).map_or(false, |x|
                         x.get(col.wrapping_add(j as usize)).map_or(false, |&y|
-                            y != 0)))) {
-                    data[row][col] = 2;
+                            y != GenData::Empty)))) {
+                    data[row][col] = GenData::Interior;
                 }
             }
         }
     }
     for row in 0..19 {
         for col in 0..77 {
-            if data[row][col] == 1 {
+            if data[row][col] == GenData::Wall {
                 if row == 0 || row == 19-1 ||
-                   data[row-1][col] != 1 || data[row+1][col] != 1 {
+                   data[row-1][col] != GenData::Wall || data[row+1][col] != GenData::Wall {
                     map[row][col] = Box::new(map::HorizWall {});
                 } else {
                     map[row][col] = Box::new(map::VertWall {});
