@@ -117,16 +117,23 @@ pub fn gen_rooms() -> Map {
     for row in 0..19 {
         for col in 0..77 {
             match data[row][col] {
+                GenData::InteriorFilled => {
+                    map[row][col] = Box::new(map::Floor {});
+                },
                 GenData::Wall => {
-                    if row == 0 || row == 19-1 ||
-                       data[row-1][col] != GenData::Wall || data[row+1][col] != GenData::Wall {
-                        map[row][col] = Box::new(map::HorizWall {});
-                    } else {
-                        map[row][col] = Box::new(map::VertWall {});
-                    }
+                    map[row][col] = Box::new(map::Wall {
+                        vert: row != 0 && row != 19-1 &&
+                            is_wall(&data[row-1][col]) &&
+                            is_wall(&data[row+1][col])
+                    });
                 },
                 GenData::Door => {
-                    map[row][col] = Box::new(map::Door {});
+                    map[row][col] = Box::new(map::Door {
+                        vert: row != 0 && row != 19-1 &&
+                            is_wall(&data[row-1][col]) &&
+                            is_wall(&data[row+1][col]),
+                        open: true
+                    });
                 },
                 GenData::Corridor => {
                     map[row][col] = Box::new(map::Corridor {});
@@ -223,4 +230,8 @@ fn flood_fill(data: &mut [[GenData; 77]; 19], row: usize, col: usize, prow: usiz
         },
         GenData::InteriorFilled | GenData::Door | GenData::Corridor => {}
     }
+}
+
+fn is_wall(tile: &GenData) -> bool {
+    *tile == GenData::Wall || *tile == GenData::Door
 }
