@@ -27,15 +27,15 @@ impl Object for Player {
     fn turn(&mut self, map: &mut Map, before: &mut [Box<Object>], after: &mut [Box<Object>]) {
         let ch = ncurses::getch() as u8 as char;
         for &(dirch, dir) in [
-                    ('h', &pos::LEFT),
-                    ('j', &pos::DOWN),
-                    ('k', &pos::UP),
-                    ('l', &pos::RIGHT),
-                    ('y', &pos::UP_LEFT),
-                    ('u', &pos::UP_RIGHT),
-                    ('b', &pos::DOWN_LEFT),
-                    ('n', &pos::DOWN_RIGHT)
-                ].iter() {
+            ('h', &pos::LEFT),
+            ('j', &pos::DOWN),
+            ('k', &pos::UP),
+            ('l', &pos::RIGHT),
+            ('y', &pos::UP_LEFT),
+            ('u', &pos::UP_RIGHT),
+            ('b', &pos::DOWN_LEFT),
+            ('n', &pos::DOWN_RIGHT)
+        ].iter() {
             if ch == dirch {
                 if let Some(pos) = util::move_relative(self, dir, map, before, after) {
                     self.pos = pos;
