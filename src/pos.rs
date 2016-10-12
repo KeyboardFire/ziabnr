@@ -10,7 +10,11 @@ impl Pos {
     }
 }
 
-pub const LEFT:  Pos = Pos { row:  0, col: -1 };
-pub const DOWN:  Pos = Pos { row:  1, col:  0 };
-pub const UP:    Pos = Pos { row: -1, col:  0 };
-pub const RIGHT: Pos = Pos { row:  0, col:  1 };
+pub const UP_LEFT:    Pos = Pos { row: -1, col: -1 };
+pub const UP:         Pos = Pos { row: -1, col:  0 };
+pub const UP_RIGHT:   Pos = Pos { row: -1, col:  1 };
+pub const RIGHT:      Pos = Pos { row:  0, col:  1 };
+pub const DOWN_RIGHT: Pos = Pos { row:  1, col:  1 };
+pub const DOWN:       Pos = Pos { row:  1, col:  0 };
+pub const DOWN_LEFT:  Pos = Pos { row:  1, col: -1 };
+pub const LEFT:       Pos = Pos { row:  0, col: -1 };
