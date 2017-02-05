@@ -62,4 +62,4 @@ impl Object for RandomWalker {
             self.pos = new_pos;
         }
     }
-}
+} //this is the only comment in this entire game meems
